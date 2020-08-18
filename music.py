@@ -1,6 +1,6 @@
 # ！/usr/bin/env python
 # -*- coding: utf-8 -*-
-# author: songguang    time: 2020-8-15    version: 1.0
+# author: songguang    time: 2020-8-18    version: 1.0
 import time
 import datetime
 import requests
@@ -15,6 +15,7 @@ from urllib.parse import quote
 import hashlib
 from prettytable import PrettyTable
 from savefile import save_file
+
 
 '''
 *******************************************************QQ音乐************************************************************
@@ -92,14 +93,15 @@ class QQMusic(object):
 
 
 class CloudMusic(object):
+
     def __init__(self):
+        self.cloudmusic_search_url = 'https://music.163.com/weapi/cloudsearch/get/web?csrf_token='
+        self.cloudmusic_url = 'https://music.163.com/weapi/song/enhance/player/url/v1?csrf_token='
         self.headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.116 Safari/537.36",
             "Referer": "https://music.163.com/search/",
             "content-type": "application/x-www-form-urlencoded"
         }
-        self.cloudmusic_search_url = 'https://music.163.com/weapi/cloudsearch/get/web?csrf_token='
-        self.cloudmusic_url = 'https://music.163.com/weapi/song/enhance/player/url/v1?csrf_token='
 
     def get_cloudmusic_id(self, name):
         # 构造 Form  Data
@@ -142,6 +144,7 @@ class CloudMusic(object):
 
 
 class DecryptMusic(object):
+
     def __init__(self, d):
         self.d = d
         self.e = '010001'
@@ -189,6 +192,7 @@ class DecryptMusic(object):
 
 
 class CoolMeMusic(object):
+
     def __init__(self):
         self.coomemusic_search_url = 'http://www.kuwo.cn/api/www/search/searchMusicBykeyWord?'
         self.coomemusic_url = 'http://www.kuwo.cn/url?'
@@ -260,14 +264,10 @@ class CoolMeMusic(object):
 
 
 class CoolDogMusic(object):
+
     def __init__(self):
         self.cooldogmusic_search_url = 'https://complexsearch.kugou.com/v2/search/song?'
         self.cooldogmusic_url = 'https://wwwapi.kugou.com/yy/index.php?'
-        self.headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/84.0.4147.125 Safari/537.36',
-            # "Referer": "https://www.kugou.com/yy/html/search.html",
-            "Referer": "https://www.kugou.com/song/",
-        }
 
     def get_cooldogmusic_hash(self, name):
         ts = str(int(time.time() * 1000))
@@ -315,15 +315,20 @@ class CoolDogMusic(object):
                   'uuid': ts,
                   'dfid': '-',
                   'signature': signature}
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/84.0.4147.125 Safari/537.36',
+            "Referer": "https://www.kugou.com/yy/html/search.html",
+            "Cookie": "kg_mid=51c4c082ede4cd8b006589d6a65d87a0",
+        }
 
         try:  # 解决text乱码及url不响应问题
-            response = requests.get(url=self.cooldogmusic_search_url, params=params, headers=self.headers, verify=True,
+            response = requests.get(url=self.cooldogmusic_search_url, params=params, headers=headers, verify=True,
                                     timeout=10)  # 获得服务器response
             response.raise_for_status()  # 如果status_code不是200，产生异常requests.HTTPError
             response.encoding = response.apparent_encoding  # header中编码方式 = 内容分析出的编码方式
         except requests.RequestException:
             print("request error: {}".format(self.cooldogmusic_search_url))  # 打印错误信息
-            raise Exception("request error: {}".format(self.cooldogmusic_search_url))  # 抛出异常错误
+            # raise Exception("request error: {}".format(self.cooldogmusic_search_url))  # 抛出异常错误
         song_list = json.loads(response.text.replace('callback123(', '')[0:-2])['data']['lists']
         return [x['FileHash'] for x in song_list], [x['AlbumID'] for x in song_list], list(
             map(lambda x: ['酷狗', x['SongName'].replace('<em>', '').replace('</em>', ''), x['SingerName'],
@@ -331,6 +336,12 @@ class CoolDogMusic(object):
 
     def get_cooldogmusic_url(self, name):
         hashs, album_ids, informations = self.get_cooldogmusic_hash(name)
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/84.0.4147.125 Safari/537.36',
+            "Referer": "https://www.kugou.com/song/",
+        }
+        cookies_str = 'kg_mid=1b577d35afd6f834f70982a68ddb1855; Hm_lvt_aedee6983d4cfc62f509129360d6bb3d=1597668323; kg_mid_temp=1b577d35afd6f834f70982a68ddb1855; Hm_lpvt_aedee6983d4cfc62f509129360d6bb3d=1597670784'
+        cookies_dict = {cookie.split('=')[0]: cookie.split('=')[-1] for cookie in cookies_str.split('; ')}
         for hash, album_id, information in zip(hashs, album_ids, informations):
             params = {
                 'r': 'play/getdata',
@@ -344,16 +355,15 @@ class CoolDogMusic(object):
                 'platid': 4,
                 '_': int(time.time() * 1000),
             }
-            cookies_str = 'kg_mid=1b577d35afd6f834f70982a68ddb1855; Hm_lvt_aedee6983d4cfc62f509129360d6bb3d=1597668323; kg_mid_temp=1b577d35afd6f834f70982a68ddb1855; Hm_lpvt_aedee6983d4cfc62f509129360d6bb3d=1597670784'
-            cookies_dict = {cookie.split('=')[0]: cookie.split('=')[-1] for cookie in cookies_str.split('; ')}
+
             try:  # 解决text乱码及url不响应问题
-                response = requests.get(url=self.cooldogmusic_url, params=params, headers=self.headers, verify=True,
+                response = requests.get(url=self.cooldogmusic_url, params=params, headers=headers, verify=True,
                                         cookies=cookies_dict, timeout=10)  # 获得服务器response
                 response.raise_for_status()  # 如果status_code不是200，产生异常requests.HTTPError
                 response.encoding = response.apparent_encoding  # header中编码方式 = 内容分析出的编码方式
             except requests.RequestException:
                 print("request error: {}".format(self.cooldogmusic_url))  # 打印错误信息
-                raise Exception("request error: {}".format(self.cooldogmusic_url))  # 抛出异常错误
+                # raise Exception("request error: {}".format(self.cooldogmusic_url))  # 抛出异常错误
             response_data = json.loads(response.text[41:-2])['data']['play_url']
             if response_data != '':
                 information.append(response_data)
@@ -417,8 +427,8 @@ if __name__ == "__main__":
     print(table)
     dir_path = 'music'
     while True:
-        index = input("请输入你需要下载歌曲的序号（结束程序请输入q）：")
-        if index == 'q':
+        index = input("请输入你需要下载歌曲的序号（结束程序请输入Q）：")
+        if index == 'q' or index == 'Q':
             break
         elif index.isdecimal():
             url = music_infos[int(index)][5]
